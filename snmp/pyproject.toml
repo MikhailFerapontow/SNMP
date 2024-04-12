@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "snmp"
+version = "0.1.0"
+description = ""
+authors = ["MikhailFerapontow <mvferapontov@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pysnmp = "^4.4.12"
+hurry-filesize = "^0.9"
+dearpygui = "^1.11.1"
+flet = "^0.21.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
