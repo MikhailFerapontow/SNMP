@@ -1,15 +1,97 @@
+\subsection*{Конфигурация SNMP}
+
+Для работы с SNMP нужно установить клиента и демона. Для arch linux существует пакет
+net-snmpd, который включает в себя всё необходимое.
+
+SNMP v3 добавляет безопасность и шифрованную аутентификацию/коммуникацию.
+Он использует схему конфигурации в файле /etc/snmp/snmpd.conf и дополнительную
+конфигурацию в файле /var/net-snmp/snmpd.conf.
+
+Для первого конфигурационного файла в /etc/ можно записать непосредственно
+в него или использовать мастер настройки snmpconf:
+
+\begin{verbatim}
+$ mkdir /etc/snmp/
+$ echo rouser read_only_user >> /etc/snmp/snmpd.conf
+$ snmpconf -g basic_setup
+\end{verbatim}
+
+Мы воспользуемся мастером настройки snmpconf.
+
+\subsubsection*{Демон}
+
+Запускаем службу snmpd.service.
+\begin{verbatim}
+$ sudo systemctl start snmpd
+\end{verbatim}
+
+\subsubsection*{Тестирование}
+Если используется SNMP 1 или 2c, используйте одну из следующих команд для тестирования конфигурации:
+
+\begin{verbatim}
+$ snmpwalk -v 2c -c read_only_community_string localhost | less
+\end{verbatim}
+
+Мы смогли получить значения OID системы, значит конфигурация прошла успешно.
+
+\subsection*{Определение OID для метрик}
+
+Прежде чем приступить к разработке приложения, необходимо определить OID для метрик.
+Мы будем отслеживать следующие метрики:
+\begin{itemize}
+    \item Нагрузку процессора.
+    \item Температуру процессора.
+    \item Использование RAM.
+    \item Исходящий и входящий интернет трафик.
+\end{itemize}
+
+\subsubsection*{Нагрузка процессора}
+
+\begin{enumerate}
+    \item \textbf{.1.3.6.1.4.1.2021.10.1.3.1} -- нагрузка процессора за 1 минуту
+    \item \textbf{.1.3.6.1.4.1.2021.10.1.3.2} -- нагрузка процессора за 5 минут
+    \item \textbf{.1.3.6.1.4.1.2021.10.1.3.3} -- нагрузка процессора за 15 минут
+\end{enumerate}
+
+Данная метрика показывает общую нагрузку процессора в зависимости от количества ядер, где
+100\% нагрузка равна количествую ядер. Например, в одноядерной системе нагрузка 1 будет соответсвовать
+100\% нагрузке, когда же в двухядерной системе нагрузка будет равна 50\%.
+
+\subsubsection*{Температура процессора}
+
+К сожалению, нельзя узнать температуру процессора через SNMP "из коробки". Поэтому
+мы воспользуемся системой мониторинга \textbf{lm\_sensors} \cite{archlinuxLm}. Она создаст своё MIB хранилище
+и мы получим доступ к нему через SNMP.
+
+\begin{enumerate}
+    \item \textbf{LM-SENSORS-MIB::lmTempSensorsValue.1} -- температура процессора
+\end{enumerate}
+
+Как можно заметить OID может представляться как числовым значением, так и текстовым.
+
+\subsubsection*{Интернет трафик}
+
+\begin{enumerate}
+    \item \textbf{IF-MIB::ifInOctets} -- входящий интернет трафик
+    \item \textbf{IF-MIB::ifOutOctets} -- исходящий интернет трафик
+\end{enumerate}
+
+Данная метрика показывает какое количество октетов (байт) передалось из или в интерфейс с момента
+начала работы системы. Так как в системе может быть большое количество интерфейсов, то мы провёдем
+операцию под названием \textbf{snmpwalk} и соберём значения со всех интерфейсов.
+
+\subsubsection*{Использование RAM}
+
+\begin{enumerate}
+    \item \textbf{UCD-SNMP-MIB::memTotalReal.0} -- общее количество RAM на устройстве
+    \item \textbf{UCD-SNMP-MIB::memAvailReal.0} -- доступное количество RAM для использования
+    \item \textbf{UCD-SNMP-MIB::memCached.0} -- закеширование количество RAM на устройстве
+\end{enumerate}
+
 \subsection*{Разработка приложения}
 
-Приложение представляет собой веб приложение, которое получает данные о пользовательских устройствах через файл config.
-Файл config может обновляться пользователем через интерфейс приложения, для добавления новых устройств для мониторинга.
+Когда мы узнали все нужные для работы OID, мы можем приступить к разработке приложения.
+Библиотека \textbf{PySNMP} предоставляет простой и удобный интерфейс для работы с SNMP протоколом.
+Был написан класс SNMPClient.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics*[width=1\textwidth]{./img/image_2024-04-07_22-06-12.png}
-    \caption{Внешний вид приложения}
-\end{figure}
-
-\lstinputlisting[language=python]{./snmp/main.py}
-\lstinputlisting[language=python]{./snmp/item.py}
-\lstinputlisting[language=python]{./snmp/utils.py}
-
+\lstinputlisting[language=python]{./snmp/snmp/snmp.py}
