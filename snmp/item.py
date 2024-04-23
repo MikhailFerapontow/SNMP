@@ -25,12 +25,17 @@ class MachineInfo(ft.UserControl):
     def update_values(self):
         while self.running:
             self.cpu.value = f"{self.client.get_cpu_usage_1min()}, {self.client.get_cpu_usage_5min()}, {self.client.get_cpu_usage_10min()}"
-            self.temp.value = "{:.2f} °C".format(int(self.client.get_cpu_temperature()) / 1000)
+
+            try:
+                self.temp.value = "{:.2f} °C".format(
+                    int(self.client.get_cpu_temperature()) / 1000)
+            except BaseException:
+                self.temp.value = "N/A"
 
             self.counter += 1
             if self.counter == 5:
-                network_in = int(self.client.get_internet_traffic_in())
-                network_out = int(self.client.get_internet_traffic_out())
+                network_in = self.client.get_internet_traffic_in()
+                network_out = self.client.get_internet_traffic_out()
 
                 self.network_in.value = "{}/s".format(size( (network_in - self.network_in_prev) / 5 ))
                 self.network_out.value = "{}/s".format(size( (network_out - self.network_out_prev) / 5 ))
@@ -64,8 +69,8 @@ class MachineInfo(ft.UserControl):
         self.used_ram = ft.Text()
         self.cpu_count = ft.Text()
 
-        self.network_in_prev = int(self.client.get_internet_traffic_in())
-        self.network_out_prev = int(self.client.get_internet_traffic_out())
+        self.network_in_prev = self.client.get_internet_traffic_in()
+        self.network_out_prev = self.client.get_internet_traffic_out()
         self.cpu_count.value = self.client.get_cpu_count()
 
         cpu_container = ft.Container(

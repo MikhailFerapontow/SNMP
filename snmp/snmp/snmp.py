@@ -1,4 +1,5 @@
 from pysnmp.hlapi import *
+from pysnmp.smi.rfc1902 import *
 
 class SNMPClient:
     def __init__(self, ip_address,  community='read_only_community_string'):
@@ -22,6 +23,33 @@ class SNMPClient:
         else:
             return varBinds[0][1].prettyPrint()
 
+    def __get_snmpwalk_request(self, oid: ObjectIdentity):
+        count = 0
+        value = 0
+        for (errorIndication, errorStatus, errorIndex, varBinds) in nextCmd(
+            SnmpEngine(),
+            CommunityData(self.community, mpModel=1),
+            UdpTransportTarget((self.ip_address, 161)),
+            ContextData(),
+            ObjectType(oid),
+            lexicographicMode=False
+        ):
+            if errorIndication:
+                print(errorIndication)
+                break
+            elif errorStatus:
+                print('%s at %s' % (
+                    errorStatus.prettyPrint(),
+                    errorIndex and varBinds[int(errorIndex) - 1][0] or '?'
+                    )
+                )
+                break
+            else:
+                if type(varBinds[0][1]) == Counter32:
+                    value += varBinds[0][1]
+                count += 1
+        return (count, value)
+
     def get_cpu_usage_1min(self):
         return self.__get_snmp_request(ObjectIdentity('.1.3.6.1.4.1.2021.10.1.3.1'))
 
@@ -30,12 +58,6 @@ class SNMPClient:
 
     def get_cpu_usage_10min(self):
         return self.__get_snmp_request(ObjectIdentity('.1.3.6.1.4.1.2021.10.1.3.3'))
-
-    def get_internet_traffic_out(self):
-        return self.__get_snmp_request(ObjectIdentity("IF-MIB", "ifOutOctets", 2))
-
-    def get_internet_traffic_in(self):
-        return self.__get_snmp_request(ObjectIdentity("IF-MIB", "ifInOctets", 2))
 
     def get_cpu_temperature(self):
         return self.__get_snmp_request(ObjectIdentity("LM-SENSORS-MIB", "lmTempSensorsValue", 1))
@@ -60,27 +82,14 @@ class SNMPClient:
         return True if val else False
 
     def get_cpu_count(self):
-        count = 0
-        for (errorIndication, errorStatus, errorIndex, varBinds) in nextCmd(
-            SnmpEngine(),
-            CommunityData(self.community, mpModel=1),
-            UdpTransportTarget((self.ip_address, 161)),
-            ContextData(),
-            ObjectType(ObjectIdentity("HOST-RESOURCES-MIB", "hrProcessorFrwID")),
-            lexicographicMode=False
-        ):
-            if errorIndication:
-                print(errorIndication)
-                break
-            elif errorStatus:
-                print('%s at %s' % (
-                    errorStatus.prettyPrint(),
-                    errorIndex and varBinds[int(errorIndex) - 1][0] or '?'
-                    )
-                )
-                break
-            else:
-                for _ in varBinds:
-                    count += 1
-        return count
+        values = self.__get_snmpwalk_request(ObjectIdentity("HOST-RESOURCES-MIB", "hrProcessorFrwID"))
+        return values[0]
+
+    def get_internet_traffic_out(self):
+        values = self.__get_snmpwalk_request(ObjectIdentity("IF-MIB", "ifOutOctets"))
+        return values[1]
+
+    def get_internet_traffic_in(self):
+        values = self.__get_snmpwalk_request(ObjectIdentity("IF-MIB", "ifInOctets"))
+        return values[1]
 
