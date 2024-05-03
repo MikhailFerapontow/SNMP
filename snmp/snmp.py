@@ -1,7 +1,7 @@
 from pysnmp.hlapi import *
 
 class SNMPClient:
-    def __init__(self, ip_address,  community='read_only_community_string'):
+    def __init__(self, ip_address, community='read_only_community_string'):
         self.ip_address = ip_address
         self.community = community
         self.snmp_engine = SnmpEngine()
